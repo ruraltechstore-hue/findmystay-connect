@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
+import AdminLogin from "./pages/AdminLogin";
 import Listings from "./pages/Listings";
 import ListingDetail from "./pages/ListingDetail";
 import BookingRequest from "./pages/BookingRequest";
@@ -37,6 +38,8 @@ const App = () => (
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/booking/:id" element={<BookingRequest />} />
             <Route path="/listing/:id/reviews" element={<Reviews />} />
+            {/* Admin login - separate from public login */}
+            <Route path="/admin/login" element={<AdminLogin />} />
             {/* Dashboard routes with nested sub-routes */}
             <Route path="/owner/*" element={<OwnerDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />

@@ -2,3 +2,9 @@ project_id = "tbpyzxlczopbddvtbbzr"
 
 [functions.fraud-check]
 verify_jwt = false
+
+[functions.otp-auth]
+verify_jwt = false
+
+[functions.admin-seed]
+verify_jwt = false

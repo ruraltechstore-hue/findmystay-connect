@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, Routes, Route } from "react-router-dom";
 import {
   BarChart3, BadgeCheck, Users, AlertTriangle,
-  MessageSquare, Building2, ShieldCheck
+  MessageSquare, Building2, ShieldCheck, MessageSquareWarning, Activity
 } from "lucide-react";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
@@ -11,6 +11,8 @@ import AdminReviewModeration from "@/components/admin/AdminReviewModeration";
 import AdminFraudAlerts from "@/components/AdminFraudAlerts";
 import AdminMediaVerification from "@/components/AdminMediaVerification";
 import AdminHostelApprovals from "@/components/admin/AdminHostelApprovals";
+import AdminComplaints from "@/components/admin/AdminComplaints";
+import AdminActivityMonitor from "@/components/admin/AdminActivityMonitor";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -20,6 +22,7 @@ const sidebarGroups = [
     label: "Overview",
     items: [
       { title: "Analytics", url: "/admin", icon: BarChart3 },
+      { title: "Activity Monitor", url: "/admin/activity", icon: Activity },
     ],
   },
   {
@@ -30,6 +33,7 @@ const sidebarGroups = [
       { title: "Fraud Alerts", url: "/admin/fraud", icon: AlertTriangle },
       { title: "Reviews", url: "/admin/reviews", icon: MessageSquare },
       { title: "Media Verification", url: "/admin/media", icon: Building2 },
+      { title: "Complaints", url: "/admin/complaints", icon: MessageSquareWarning },
     ],
   },
 ];
@@ -40,7 +44,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (!authLoading && rolesLoaded) {
-      if (!user) { navigate("/login"); return; }
+      if (!user) { navigate("/admin/login"); return; }
       if (!hasRole("admin")) { toast.error("Admin access required"); navigate("/"); return; }
     }
   }, [user, authLoading, rolesLoaded]);
@@ -64,11 +68,13 @@ const AdminDashboard = () => {
     >
       <Routes>
         <Route index element={<AdminAnalytics />} />
+        <Route path="activity" element={<AdminActivityMonitor />} />
         <Route path="approvals" element={<AdminHostelApprovals />} />
         <Route path="users" element={<AdminUserManagement />} />
         <Route path="fraud" element={<AdminFraudAlerts />} />
         <Route path="reviews" element={<AdminReviewModeration />} />
         <Route path="media" element={<AdminMediaVerification />} />
+        <Route path="complaints" element={<AdminComplaints />} />
       </Routes>
     </DashboardLayout>
   );
