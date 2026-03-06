@@ -31,7 +31,7 @@ interface PendingVerification {
 }
 
 const AdminDashboard = () => {
-  const { user, hasRole, loading: authLoading } = useAuth();
+  const { user, hasRole, loading: authLoading, rolesLoaded } = useAuth();
   const navigate = useNavigate();
   const [pendingDocs, setPendingDocs] = useState<PendingVerification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,12 +39,12 @@ const AdminDashboard = () => {
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && rolesLoaded) {
       if (!user) { navigate("/login"); return; }
       if (!hasRole("admin")) { toast.error("Admin access required"); navigate("/"); return; }
       fetchPendingDocs();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, rolesLoaded]);
 
   const fetchPendingDocs = async () => {
     const { data } = await supabase
@@ -80,7 +80,7 @@ const AdminDashboard = () => {
     setProcessing(null);
   };
 
-  if (authLoading || loading) {
+  if (authLoading || !rolesLoaded || loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
