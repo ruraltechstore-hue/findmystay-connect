@@ -48,10 +48,19 @@ Deno.serve(async (req) => {
       const otpCode = generateOTP();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
+      // For test accounts, use fixed OTP 123456
+      const testEmails = [
+        "rahul@studenttest.com",
+        "ananya@worktest.com",
+        "ramesh@hostelowner.com",
+        "suresh@pgowner.com",
+      ];
+      const finalOtp = testEmails.includes(contact.toLowerCase()) ? "123456" : otpCode;
+
       // Store OTP
       await supabase.from("otp_codes").insert({
         contact,
-        otp_code: otpCode,
+        otp_code: finalOtp,
         expires_at: expiresAt,
       });
 
