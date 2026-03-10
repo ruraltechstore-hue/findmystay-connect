@@ -55,11 +55,15 @@ const OwnerPropertyManager = () => {
     if (data) {
       const enriched: HostelWithRooms[] = [];
       for (const h of data) {
-        const [roomsRes, imagesRes] = await Promise.all([
+        const [roomsRes, imagesRes, videosRes] = await Promise.all([
           supabase.from("rooms").select("*").eq("hostel_id", h.id).order("sharing_type"),
           supabase.from("hostel_images").select("*").eq("hostel_id", h.id).order("display_order"),
+          (supabase.from("hostel_videos") as any).select("*").eq("hostel_id", h.id).order("display_order"),
         ]);
-        enriched.push({ ...h, rooms: roomsRes.data || [], images: imagesRes.data || [] });
+        const images = (imagesRes.data || []).map((img: any) => ({ id: img.id, url: img.image_url, uploaded_by: img.uploaded_by || "owner", display_order: img.display_order }));
+        const videos = (videosRes.data || []).map((vid: any) => ({ id: vid.id, url: vid.video_url, uploaded_by: vid.uploaded_by || "owner", display_order: vid.display_order }));
+        enriched.push({ ...h, rooms: roomsRes.data || [], images, videos });
+      }
       }
       setHostels(enriched);
     }
