@@ -121,6 +121,12 @@ const UserHome = () => {
           </div>
         )}
       </div>
+
+      {/* Refer & Earn */}
+      <ReferAndEarn />
+
+      {/* Lifestyle Services */}
+      <LifestyleServices />
     </div>
   );
 };

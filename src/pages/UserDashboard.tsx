@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, Routes, Route } from "react-router-dom";
 import {
   Home, Search, Heart, Calendar, Star, User,
-  Sparkles, MapPin, ShirtIcon
+  Sparkles, MapPin, ShirtIcon, Gift
 } from "lucide-react";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import UserHome from "@/components/user/UserHome";
