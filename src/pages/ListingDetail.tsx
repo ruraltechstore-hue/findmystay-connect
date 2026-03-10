@@ -10,11 +10,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { listings } from "@/data/mockListings";
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 const amenityIconMap: Record<string, React.ReactNode> = {
   WiFi: <Wifi className="w-5 h-5" />,
