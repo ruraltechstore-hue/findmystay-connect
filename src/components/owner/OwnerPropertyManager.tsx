@@ -182,7 +182,7 @@ const OwnerPropertyManager = () => {
             </div>
             <div className="text-right shrink-0">
               <p className="font-heading font-bold text-sm text-primary">₹{hostel.price_min.toLocaleString()} - ₹{hostel.price_max.toLocaleString()}</p>
-              <p className="text-muted-foreground text-xs">{hostel.rooms.length} room types · {hostel.images.length} photos</p>
+              <p className="text-muted-foreground text-xs">{hostel.rooms.length} room types · {hostel.images.length} photos · {hostel.videos.length} videos</p>
             </div>
           </button>
 
