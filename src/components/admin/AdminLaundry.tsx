@@ -180,8 +180,8 @@ const AdminLaundry = () => {
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold text-sm">{order.profiles?.full_name || "Unknown User"}</p>
-                      <p className="text-xs text-muted-foreground">{order.profiles?.email} · {order.profiles?.phone}</p>
+                      <p className="font-semibold text-sm">{order.profile?.full_name || "Unknown User"}</p>
+                      <p className="text-xs text-muted-foreground">{order.profile?.email} · {order.profile?.phone}</p>
                       <p className="text-xs text-muted-foreground mt-1">#{order.id.slice(0, 8)} · {format(new Date(order.created_at), "MMM d, yyyy h:mm a")}</p>
                     </div>
                     <Badge className={cn("text-[10px]", STATUS_COLORS[order.status])}>
