@@ -20,7 +20,7 @@ const HeroSection = () => {
       {/* Background */}
       <div className="absolute inset-0">
         <img src={heroBg} alt="Modern accommodation" className="w-full h-full object-cover" loading="eager" />
-        <div className="absolute inset-0 bg-gradient-to-b from-foreground/70 via-foreground/50 to-foreground/80" />
+        <div className="absolute inset-0 bg-gradient-hero opacity-92" />
         {/* Decorative blur circles */}
         <div className="absolute top-1/4 -left-32 w-64 h-64 bg-primary/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 -right-32 w-64 h-64 bg-accent/20 rounded-full blur-3xl" />
@@ -33,11 +33,11 @@ const HeroSection = () => {
           transition={{ duration: 0.7, ease: "easeOut" }}
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 mb-8">
-            <Sparkles className="w-4 h-4 text-verified" />
+            <Sparkles className="w-4 h-4 text-accent" />
             <span className="text-primary-foreground/90 text-sm font-medium">Trusted by 15,000+ students & professionals</span>
           </div>
           
-          <h1 className="font-heading font-extrabold text-4xl md:text-6xl lg:text-7xl text-primary-foreground mb-5 leading-[1.1] tracking-tight">
+          <h1 className="font-heading font-bold text-4xl md:text-6xl lg:text-7xl text-primary-foreground mb-5 leading-[1.1] tracking-tight">
             Find Your Perfect
             <br />
             <span className="text-gradient">Stay</span>
@@ -100,7 +100,7 @@ const HeroSection = () => {
             { value: "25+", label: "Cities" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
-              <p className="font-heading font-extrabold text-2xl md:text-3xl text-primary-foreground">{stat.value}</p>
+              <p className="font-heading font-bold text-2xl md:text-3xl text-primary-foreground">{stat.value}</p>
               <p className="text-primary-foreground/50 text-xs mt-1">{stat.label}</p>
             </div>
           ))}

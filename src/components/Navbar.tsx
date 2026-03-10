@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, Building2, LogOut, ShieldCheck, FileCheck, LayoutDashboard } from "lucide-react";
+import { Menu, X, User, Building2, LogOut, ShieldCheck, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,8 +34,8 @@ const Navbar = () => {
             <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-sm">
               <Building2 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-heading font-extrabold text-xl tracking-tight text-foreground">
-              FindMy<span className="text-primary">Stay</span>
+            <span className="font-heading font-bold text-xl tracking-tight text-foreground">
+              Stay<span className="text-gradient">Nest</span>
             </span>
           </Link>
 

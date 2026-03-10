@@ -47,7 +47,7 @@ const DashboardSidebar = ({ title, subtitle, groups }: DashboardSidebarProps) =>
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="p-4">
         <div
           className="flex items-center gap-2.5 cursor-pointer"
@@ -58,8 +58,8 @@ const DashboardSidebar = ({ title, subtitle, groups }: DashboardSidebarProps) =>
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="font-heading font-extrabold text-sm truncate">{title}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>
+              <p className="font-heading font-bold text-sm truncate text-sidebar-foreground">{title}</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">{subtitle}</p>
             </div>
           )}
         </div>
@@ -68,7 +68,7 @@ const DashboardSidebar = ({ title, subtitle, groups }: DashboardSidebarProps) =>
       <SidebarContent className="px-2">
         {groups.map((group) => (
           <SidebarGroup key={group.label}>
-            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-3">
+            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3">
               {!collapsed && group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -83,12 +83,12 @@ const DashboardSidebar = ({ title, subtitle, groups }: DashboardSidebarProps) =>
                           end
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                             isActive
-                              ? "bg-primary/10 text-primary font-semibold"
-                              : "text-sidebar-foreground hover:bg-sidebar-accent"
+                              ? "bg-sidebar-primary/20 text-sidebar-primary font-semibold"
+                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                           }`}
                           activeClassName=""
                         >
-                          <item.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-primary" : ""}`} />
+                          <item.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-sidebar-primary" : ""}`} />
                           {!collapsed && (
                             <>
                               <span className="flex-1 truncate">{item.title}</span>
@@ -114,7 +114,7 @@ const DashboardSidebar = ({ title, subtitle, groups }: DashboardSidebarProps) =>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive rounded-xl"
+          className="w-full justify-start gap-2 text-sidebar-foreground/50 hover:text-destructive hover:bg-sidebar-accent rounded-xl"
           onClick={handleSignOut}
         >
           <LogOut className="w-4 h-4" />
@@ -123,7 +123,7 @@ const DashboardSidebar = ({ title, subtitle, groups }: DashboardSidebarProps) =>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground rounded-xl"
+          className="w-full justify-start gap-2 text-sidebar-foreground/50 hover:bg-sidebar-accent rounded-xl"
           onClick={() => navigate("/")}
         >
           <ChevronLeft className="w-4 h-4" />

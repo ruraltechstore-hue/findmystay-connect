@@ -28,15 +28,15 @@ const Welcome = () => {
               transition={{ duration: 0.8 }}
             >
               <div className="flex items-center gap-2.5 mb-8">
-                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg">
                   <Building2 className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <span className="font-heading font-extrabold text-2xl text-primary-foreground">
-                  FindMyStay
+                <span className="font-heading font-bold text-2xl text-primary-foreground">
+                  StayNest
                 </span>
               </div>
 
-              <h1 className="font-heading font-extrabold text-4xl md:text-5xl lg:text-6xl text-primary-foreground leading-[1.1] mb-6">
+              <h1 className="font-heading font-bold text-4xl md:text-5xl lg:text-6xl text-primary-foreground leading-[1.1] mb-6">
                 Your Next Home
                 <br />
                 <span className="text-gradient">Awaits You</span>
