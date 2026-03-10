@@ -42,6 +42,22 @@ const ListingDetail = () => {
   const [activeImage, setActiveImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [dbPhotos, setDbPhotos] = useState<{ id: string; url: string; uploaded_by: string; type: "photo" }[]>([]);
+  const [dbVideos, setDbVideos] = useState<{ id: string; url: string; uploaded_by: string; type: "video" }[]>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    // Fetch DB media for this hostel
+    const fetchMedia = async () => {
+      const [imgRes, vidRes] = await Promise.all([
+        supabase.from("hostel_images").select("*").eq("hostel_id", id).order("display_order"),
+        (supabase.from("hostel_videos") as any).select("*").eq("hostel_id", id).order("display_order"),
+      ]);
+      setDbPhotos((imgRes.data || []).map((i: any) => ({ id: i.id, url: i.image_url, uploaded_by: i.uploaded_by || "owner", type: "photo" as const })));
+      setDbVideos((vidRes.data || []).map((v: any) => ({ id: v.id, url: v.video_url, uploaded_by: v.uploaded_by || "owner", type: "video" as const })));
+    };
+    fetchMedia();
+  }, [id]);
 
   if (!listing) {
     return (
