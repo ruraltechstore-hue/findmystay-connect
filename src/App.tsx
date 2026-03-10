@@ -21,6 +21,8 @@ import PRPhotoshootRequest from "./pages/PRPhotoshootRequest";
 import SelfVerifyCapture from "./pages/SelfVerifyCapture";
 import MapView from "./pages/MapView";
 import OwnerVerificationPending from "./pages/OwnerVerificationPending";
+import LaundryHome from "./pages/LaundryHome";
+import LaundryBookService from "./pages/LaundryBookService";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
