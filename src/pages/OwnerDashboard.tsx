@@ -34,7 +34,7 @@ const sidebarGroups = [
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading, rolesLoaded } = useAuth();
+  const { user, hasRole, loading: authLoading, rolesLoaded } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
