@@ -21,6 +21,8 @@ import PRPhotoshootRequest from "./pages/PRPhotoshootRequest";
 import SelfVerifyCapture from "./pages/SelfVerifyCapture";
 import MapView from "./pages/MapView";
 import OwnerVerificationPending from "./pages/OwnerVerificationPending";
+import LaundryHome from "./pages/LaundryHome";
+import LaundryBookService from "./pages/LaundryBookService";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +57,11 @@ const App = () => (
             <Route path="/self-verify-capture" element={<SelfVerifyCapture />} />
             <Route path="/owner-verification-pending" element={<OwnerVerificationPending />} />
             <Route path="/map" element={<MapView />} />
+            {/* Standalone laundry routes */}
+            <Route path="/laundry" element={<LaundryHome />} />
+            <Route path="/laundry/book-service" element={<LaundryBookService />} />
+            <Route path="/laundry/orders" element={<LaundryBookService />} />
+            <Route path="/laundry/order-details" element={<LaundryBookService />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
