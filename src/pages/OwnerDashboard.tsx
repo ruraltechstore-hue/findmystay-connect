@@ -34,11 +34,14 @@ const sidebarGroups = [
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading, rolesLoaded } = useAuth();
+  const { user, hasRole, loading: authLoading, rolesLoaded } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (!authLoading && rolesLoaded && !user) navigate("/login");
+    if (!authLoading && rolesLoaded) {
+      if (!user) navigate("/login");
+      else if (hasRole("owner_pending" as any)) navigate("/owner-verification-pending");
+    }
   }, [user, authLoading, rolesLoaded]);
 
   if (authLoading || !rolesLoaded) {
