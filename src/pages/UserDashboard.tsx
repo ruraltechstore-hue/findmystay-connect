@@ -29,6 +29,7 @@ const sidebarGroups = [
     items: [
       { title: "Bookings", url: "/dashboard/bookings", icon: Calendar },
       { title: "Laundry", url: "/dashboard/laundry", icon: ShirtIcon },
+      { title: "Refer & Earn", url: "/dashboard/referrals", icon: Gift },
       { title: "Reviews", url: "/dashboard/reviews", icon: Star },
     ],
   },
