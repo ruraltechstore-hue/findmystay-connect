@@ -162,7 +162,7 @@ const LifestyleServices = () => {
         <h3 className="font-heading font-semibold text-lg flex items-center gap-2 mb-4">
           <ExternalLink className="w-4 h-4 text-primary" /> Lifestyle Services
         </h3>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
           {services.map((service, i) => (
             <motion.button
               key={service.name}
