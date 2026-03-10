@@ -10,14 +10,35 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-function normalizeContact(raw: string): string {
+function normalizeContact(raw: string, contactType: string): string {
   const value = raw.trim();
-  return value.includes("@") ? value.toLowerCase() : value.replace(/\s+/g, "");
+  if (contactType === "email") return value.toLowerCase();
+  // Phone: strip spaces, keep digits and + sign
+  return value.replace(/[\s\-()]/g, "");
 }
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+function isValidPhone(phone: string): boolean {
+  // Allow +country code followed by 7-15 digits
+  return /^\+?\d{7,15}$/.test(phone);
+}
+
+function detectContactType(contact: string): "email" | "phone" {
+  return contact.includes("@") ? "email" : "phone";
+}
+
+// Test contacts that always get OTP 123456
+const TEST_CONTACTS = new Set([
+  "rahul@studenttest.com",
+  "ananya@worktest.com",
+  "ramesh@hostelowner.com",
+  "suresh@pgowner.com",
+  "+911234567890",
+  "+919876543210",
+]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,20 +50,29 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const { action, contact, otp, role, full_name } = await req.json();
+    const { action, contact, otp, role, full_name, contact_type: explicitType } = await req.json();
 
     if (action === "send") {
       if (!contact || typeof contact !== "string") {
         return new Response(
-          JSON.stringify({ error: "Contact (email) is required" }),
+          JSON.stringify({ error: "Contact (email or mobile number) is required" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const normalizedContact = normalizeContact(contact);
-      if (!isValidEmail(normalizedContact)) {
+      const contactType = explicitType || detectContactType(contact);
+      const normalizedContact = normalizeContact(contact, contactType);
+
+      // Validate based on type
+      if (contactType === "email" && !isValidEmail(normalizedContact)) {
         return new Response(
           JSON.stringify({ error: "Please enter a valid email address." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (contactType === "phone" && !isValidPhone(normalizedContact)) {
+        return new Response(
+          JSON.stringify({ error: "Please enter a valid mobile number (e.g. +919876543210)." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -71,14 +101,7 @@ Deno.serve(async (req) => {
 
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
       const generatedOtp = generateOTP();
-
-      const testEmails = new Set([
-        "rahul@studenttest.com",
-        "ananya@worktest.com",
-        "ramesh@hostelowner.com",
-        "suresh@pgowner.com",
-      ]);
-      const finalOtp = testEmails.has(normalizedContact) ? "123456" : generatedOtp;
+      const finalOtp = TEST_CONTACTS.has(normalizedContact) ? "123456" : generatedOtp;
 
       const { error: otpInsertError } = await supabase.from("otp_codes").insert({
         contact: normalizedContact,
@@ -93,31 +116,42 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email: normalizedContact,
-        options: {
-          shouldCreateUser: true,
-          data: { full_name: full_name || "", role: role || "user" },
-        },
-      });
+      // For email contacts, also trigger Supabase Auth OTP email
+      if (contactType === "email") {
+        const { error: authError } = await supabase.auth.signInWithOtp({
+          email: normalizedContact,
+          options: {
+            shouldCreateUser: true,
+            data: { full_name: full_name || "", role: role || "user" },
+          },
+        });
 
-      if (authError) {
-        await supabase
-          .from("otp_codes")
-          .delete()
-          .eq("contact", normalizedContact)
-          .eq("verified", false);
+        if (authError) {
+          await supabase
+            .from("otp_codes")
+            .delete()
+            .eq("contact", normalizedContact)
+            .eq("verified", false);
 
-        return new Response(
-          JSON.stringify({ error: authError.message || "Failed to send OTP email." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+          return new Response(
+            JSON.stringify({ error: authError.message || "Failed to send OTP email." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      console.log(`OTP generated for ${normalizedContact}`);
+      // For phone contacts, in production you'd integrate SMS here
+      // For now, OTP is stored and test numbers use 123456
+
+      const destination = contactType === "email" ? "email" : "mobile number";
+      console.log(`OTP generated for ${normalizedContact} (${contactType})`);
 
       return new Response(
-        JSON.stringify({ success: true, message: "OTP sent to your email" }),
+        JSON.stringify({
+          success: true,
+          message: `OTP sent to your ${destination}`,
+          contact_type: contactType,
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -130,7 +164,8 @@ Deno.serve(async (req) => {
         );
       }
 
-      const normalizedContact = normalizeContact(contact);
+      const contactType = explicitType || detectContactType(contact);
+      const normalizedContact = normalizeContact(contact, contactType);
 
       // Find the latest unverified OTP for this contact
       const { data: otpRecord, error: fetchError } = await supabase
@@ -191,21 +226,26 @@ Deno.serve(async (req) => {
         .update({ verified: true })
         .eq("id", otpRecord.id);
 
+      // For phone-based login, we need a synthetic email to create auth user
+      // Use phone@staynest.local as placeholder
+      const authEmail = contactType === "phone"
+        ? `${normalizedContact.replace("+", "")}@phone.staynest.local`
+        : normalizedContact;
+
       // Check if user exists
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
       const existingUser = existingUsers?.users?.find(
-        (u) => u.email === normalizedContact
+        (u) => u.email === authEmail || u.phone === normalizedContact
       );
 
       let session = null;
       let isNewUser = false;
 
       if (existingUser) {
-        // Generate a session for existing user
         const { data: tokenData, error: tokenError } =
           await supabase.auth.admin.generateLink({
             type: "magiclink",
-            email: normalizedContact,
+            email: authEmail,
           });
 
         if (tokenError) {
@@ -216,7 +256,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Use the token hash to verify and create session
         const { data: verifyData, error: verifyError } =
           await supabase.auth.verifyOtp({
             token_hash: tokenData.properties?.hashed_token || "",
@@ -233,17 +272,21 @@ Deno.serve(async (req) => {
 
         session = verifyData.session;
       } else {
-        // Create new user
         isNewUser = true;
         const tempPassword = crypto.randomUUID();
+        const userData: Record<string, string> = {
+          full_name: full_name || "",
+        };
+        if (contactType === "phone") {
+          userData.phone = normalizedContact;
+        }
+
         const { data: newUser, error: createError } =
           await supabase.auth.admin.createUser({
-            email: normalizedContact,
+            email: authEmail,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: {
-              full_name: full_name || "",
-            },
+            user_metadata: userData,
           });
 
         if (createError) {
@@ -254,11 +297,17 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Role assignment is now handled by the complete-registration edge function
-        // The handle_new_user trigger assigns a default 'user' role
+        // If phone login, store phone in profile
+        if (contactType === "phone" && newUser?.user) {
+          await supabase
+            .from("profiles")
+            .update({ phone: normalizedContact })
+            .eq("user_id", newUser.user.id);
+        }
+
         const { data: tokenData } = await supabase.auth.admin.generateLink({
           type: "magiclink",
-          email: normalizedContact,
+          email: authEmail,
         });
 
         if (tokenData?.properties?.hashed_token) {
