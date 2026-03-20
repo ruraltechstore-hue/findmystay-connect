@@ -51,6 +51,10 @@ const App = () => (
             <Route path="/owner/*" element={<OwnerDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
             <Route path="/dashboard/*" element={<UserDashboard />} />
+            {/* Role-based dashboard aliases */}
+            <Route path="/dashboard/user/*" element={<UserDashboard />} />
+            <Route path="/dashboard/owner/*" element={<OwnerDashboard />} />
+            <Route path="/dashboard/admin/*" element={<AdminDashboard />} />
             {/* Legacy routes */}
             <Route path="/owner-dashboard" element={<OwnerDashboard />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
