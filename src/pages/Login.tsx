@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Mail, ArrowRight, ShieldCheck, Lock, Phone, Smartphone, Loader2 } from "lucide-react";
+import { Building2, Mail, ArrowRight, ShieldCheck, Lock, Phone, Smartphone, Loader2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ const Login = () => {
   const [contactMethod, setContactMethod] = useState<ContactMethod>("mobile");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
+  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -65,10 +66,35 @@ const Login = () => {
     }
   }, [resendCountdown]);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
 
+    // If email + password provided, do direct password login (no OTP)
+    if (contactMethod === "email" && password.trim()) {
+      if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        toast.error("Please enter a valid email address."); return;
+      }
+      setSubmitting(true);
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+        });
+        if (error) {
+          toast.error(error.message || "Invalid email or password.");
+        } else if (data.session) {
+          toast.success("Welcome back!");
+          // Role-based redirect handled by useEffect watching user/rolesLoaded
+        }
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+      setSubmitting(false);
+      return;
+    }
+
+    // Otherwise, proceed with OTP flow
     if (contactMethod === "email") {
       if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         toast.error("Please enter a valid email address."); return;
@@ -219,13 +245,22 @@ const Login = () => {
                   </button>
                 </div>
 
-                <form onSubmit={handleSendOTP} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   {contactMethod === "email" ? (
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium" style={{ color: "#2C2C2C" }}>Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9B9B9B]" />
-                        <Input type="email" placeholder="you@example.com" className="pl-10 h-11 rounded-xl border-[#E8E0D8]" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium" style={{ color: "#2C2C2C" }}>Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9B9B9B]" />
+                          <Input type="email" placeholder="you@example.com" className="pl-10 h-11 rounded-xl border-[#E8E0D8]" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium" style={{ color: "#2C2C2C" }}>Password <span className="text-xs font-normal" style={{ color: "#9B9B9B" }}>(optional — leave blank for OTP)</span></Label>
+                        <div className="relative">
+                          <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9B9B9B]" />
+                          <Input type="password" placeholder="Enter password" className="pl-10 h-11 rounded-xl border-[#E8E0D8]" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -245,7 +280,7 @@ const Login = () => {
                     style={{ backgroundColor: "#5A3E2B" }}
                     disabled={submitting}
                   >
-                    {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending OTP...</> : <>Send OTP <ArrowRight className="w-4 h-4" /></>}
+                    {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> {password.trim() ? "Signing in..." : "Sending OTP..."}</> : <>{password.trim() ? "Sign In" : "Send OTP"} <ArrowRight className="w-4 h-4" /></>}
                   </Button>
                 </form>
 
