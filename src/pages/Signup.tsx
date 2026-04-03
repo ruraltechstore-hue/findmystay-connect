@@ -26,18 +26,24 @@ const Signup = () => {
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [registering, setRegistering] = useState(false);
   const verifyingRef = useRef(false);
   const navigate = useNavigate();
-  const { user, rolesLoaded } = useAuth();
+  const { user, hasRole, rolesLoaded } = useAuth();
 
   const contactValue = contactMethod === "email" ? email.trim().toLowerCase() : mobile.trim().replace(/[\s\-()]/g, "");
   const contactDisplay = contactMethod === "email" ? email : mobile;
 
   useEffect(() => {
+    // Don't redirect while we're still completing registration
+    if (registering) return;
     if (user && rolesLoaded) {
-      navigate("/dashboard");
+      if (hasRole("owner")) navigate("/owner");
+      else if (hasRole("owner_pending" as any)) navigate("/owner-verification-pending");
+      else if (hasRole("admin")) navigate("/admin");
+      else navigate("/dashboard");
     }
-  }, [user, rolesLoaded]);
+  }, [user, rolesLoaded, registering]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -117,13 +123,15 @@ const Signup = () => {
       if (res.error || res.data?.error) {
         toast.error(res.data?.error || "Verification failed");
       } else if (res.data?.session) {
+        // Block the redirect useEffect while we complete registration
+        setRegistering(true);
+
         await supabase.auth.setSession({
           access_token: res.data.session.access_token,
           refresh_token: res.data.session.refresh_token,
         });
 
         if (res.data.isNewUser) {
-          // Complete registration with role
           const dbRole = selectedRole === "owner" ? "owner_pending" : "user";
           const profileData: Record<string, unknown> = { full_name: fullName.trim() };
 
@@ -133,21 +141,25 @@ const Signup = () => {
 
           if (regRes.error || regRes.data?.error) {
             toast.error(regRes.data?.error || "Registration failed.");
+            setRegistering(false);
           } else if (selectedRole === "owner") {
             setStep("pending");
+            setRegistering(false);
           } else {
-            toast.success("Account created! Please sign in.");
-            navigate("/login");
+            toast.success("Account created!");
+            // Allow the useEffect to handle redirect after roles reload
+            setRegistering(false);
           }
         } else {
           toast.success("Welcome back! Redirecting...");
-          // Existing user — redirect handled by auth context
+          setRegistering(false);
         }
       } else {
         toast.error("Failed to create session");
       }
     } catch {
       toast.error("Something went wrong. Please try again.");
+      setRegistering(false);
     }
     setSubmitting(false);
     verifyingRef.current = false;
