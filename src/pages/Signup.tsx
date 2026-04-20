@@ -42,74 +42,23 @@ const Signup = () => {
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [resendCountdown, setResendCountdown] = useState(0);
-
+  const [registering, setRegistering] = useState(false);
   const verifyingRef = useRef(false);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user, rolesLoaded, refreshRoles } = useAuth();
-
-  const phoneE164 = composePhoneE164(phoneDialCode, phoneNational);
-  const emailNormalized = normalizeEmail(email);
-
-  const contactDisplay =
-    contactMethod === "email"
-      ? email
-      : `${phoneDialCode} ${phoneNational}`.trim();
-
-  /* -------------------------------------------- */
-  /* Invoke Edge Function */
-  /* -------------------------------------------- */
-
-  const invokeCompleteRegistration = async (
-    selectedRole: RegistrationRole,
-    profileData: Record<string, unknown>
-  ) => {
-    const maxAttempts = 2;
-  
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-  
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const result = await supabase.functions.invoke("complete-registration", {
-        body: {
-          selected_role: selectedRole,
-          profile_data: profileData,
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-      });
-  
-      if (!result.error && !result.data?.error) {
-        return result;
-      }
-  
-      const isNetworkError = /failed to send a request/i.test(
-        result.error?.message ?? ""
-      );
-  
-      if (!isNetworkError || attempt === maxAttempts) {
-        return result;
-      }
-  
-      await new Promise((r) => setTimeout(r, 700));
-    }
-  
-    return { data: null, error: new Error("Registration failed.") };
-  };
+  const { user, hasRole, rolesLoaded } = useAuth();
 
   /* -------------------------------------------- */
 
   useEffect(() => {
-    stashReferralCodeFromUrl(searchParams.get("ref"), searchParams.get("coupon"));
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (step === "details" && user && rolesLoaded) {
-      navigate("/dashboard");
+    // Don't redirect while we're still completing registration
+    if (registering) return;
+    if (user && rolesLoaded) {
+      if (hasRole("owner")) navigate("/owner");
+      else if (hasRole("owner_pending" as any)) navigate("/owner-verification-pending");
+      else if (hasRole("admin")) navigate("/admin");
+      else navigate("/dashboard");
     }
-  }, [step, user, rolesLoaded, navigate]);
+  }, [user, rolesLoaded, registering]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -207,8 +156,40 @@ const Signup = () => {
     try {
       let verifyResult;
 
-      if (contactMethod === "mobile") {
-        verifyResult = await verifyPhoneOtp(phoneE164!, otp);
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || "Verification failed");
+      } else if (res.data?.session) {
+        // Block the redirect useEffect while we complete registration
+        setRegistering(true);
+
+        await supabase.auth.setSession({
+          access_token: res.data.session.access_token,
+          refresh_token: res.data.session.refresh_token,
+        });
+
+        if (res.data.isNewUser) {
+          const dbRole = selectedRole === "owner" ? "owner_pending" : "user";
+          const profileData: Record<string, unknown> = { full_name: fullName.trim() };
+
+          const regRes = await supabase.functions.invoke("complete-registration", {
+            body: { selected_role: dbRole, profile_data: profileData },
+          });
+
+          if (regRes.error || regRes.data?.error) {
+            toast.error(regRes.data?.error || "Registration failed.");
+            setRegistering(false);
+          } else if (selectedRole === "owner") {
+            setStep("pending");
+            setRegistering(false);
+          } else {
+            toast.success("Account created!");
+            // Allow the useEffect to handle redirect after roles reload
+            setRegistering(false);
+          }
+        } else {
+          toast.success("Welcome back! Redirecting...");
+          setRegistering(false);
+        }
       } else {
         verifyResult = await verifyEmailOtp(emailNormalized, otp);
       }
@@ -268,7 +249,8 @@ const Signup = () => {
         navigate("/dashboard");
       }
     } catch {
-      toast.error("Something went wrong.");
+      toast.error("Something went wrong. Please try again.");
+      setRegistering(false);
     }
 
     setSubmitting(false);
