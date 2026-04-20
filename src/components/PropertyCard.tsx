@@ -1,22 +1,71 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Star, Heart, MapPin, BadgeCheck, Wifi, Wind, UtensilsCrossed, ShieldCheck, Camera } from "lucide-react";
+import { Star, Heart, MapPin, BadgeCheck, Wifi, Wind, UtensilsCrossed, Car, Dumbbell, ShirtIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import type { Listing } from "@/data/mockListings";
 import VerificationBadge from "@/components/VerificationBadge";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
+/** Card props mapped from Supabase hostel rows (featured / listings). */
+export interface FeaturedListing {
+  id: string;
+  title: string;
+  location: string;
+  image: string;
+  rating: number;
+  verified: boolean;
+  type: string;
+  gender: string;
+  price: number;
+  amenities: string[];
+  mediaVerificationBadge?: string | null;
+}
 
 const amenityIcons: Record<string, React.ReactNode> = {
   WiFi: <Wifi className="w-3.5 h-3.5" />,
   AC: <Wind className="w-3.5 h-3.5" />,
   Food: <UtensilsCrossed className="w-3.5 h-3.5" />,
+  Laundry: <ShirtIcon className="w-3.5 h-3.5" />,
+  Gym: <Dumbbell className="w-3.5 h-3.5" />,
+  Parking: <Car className="w-3.5 h-3.5" />,
 };
 
 interface PropertyCardProps {
-  listing: Listing;
+  listing: FeaturedListing;
   index?: number;
 }
 
 const PropertyCard = ({ listing, index = 0 }: PropertyCardProps) => {
+  const { user } = useAuth();
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("saved_hostels")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("hostel_id", listing.id)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setSaved(true); });
+  }, [user, listing.id]);
+
+  const toggleSave = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) { toast.error("Sign in to save listings"); return; }
+    if (saved) {
+      await supabase.from("saved_hostels").delete().eq("user_id", user.id).eq("hostel_id", listing.id);
+      setSaved(false);
+    } else {
+      const { error } = await supabase.from("saved_hostels").insert({ user_id: user.id, hostel_id: listing.id });
+      if (error) { toast.error("Failed to save"); return; }
+      setSaved(true);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -49,9 +98,9 @@ const PropertyCard = ({ listing, index = 0 }: PropertyCardProps) => {
             </div>
             <button
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-all hover:scale-110"
-              onClick={(e) => { e.preventDefault(); }}
+              onClick={toggleSave}
             >
-              <Heart className="w-4 h-4 text-muted-foreground" />
+              <Heart className={`w-4 h-4 ${saved ? "fill-destructive text-destructive" : "text-muted-foreground"}`} />
             </button>
             <div className="absolute bottom-3 left-3">
               <Badge variant="secondary" className="bg-card/90 backdrop-blur-sm text-[11px] capitalize shadow-sm">
@@ -66,7 +115,7 @@ const PropertyCard = ({ listing, index = 0 }: PropertyCardProps) => {
               <h3 className="font-heading font-semibold text-card-foreground line-clamp-1 text-[15px]">{listing.title}</h3>
               <div className="flex items-center gap-1 shrink-0 bg-secondary/80 px-2 py-0.5 rounded-md">
                 <Star className="w-3.5 h-3.5 fill-verified text-verified" />
-                <span className="text-xs font-bold">{listing.rating}</span>
+                <span className="text-xs font-bold">{listing.rating > 0 ? listing.rating : "New"}</span>
               </div>
             </div>
 

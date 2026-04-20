@@ -18,6 +18,18 @@ import {
   ShirtIcon, CalendarIcon, Clock, Package, Star,
   Plus, Minus, Loader2, CheckCircle2, Truck, WashingMachine
 } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
+
+type LaundryOrderWithRelations = Tables<"laundry_orders"> & {
+  laundry_order_items?: (Tables<"laundry_order_items"> & {
+    laundry_services?: { name: string } | null;
+  })[];
+  laundry_ratings?: Tables<"laundry_ratings">[];
+};
+
+type LaundryOrderItemWithServiceName = Tables<"laundry_order_items"> & {
+  laundry_services?: { name: string } | null;
+};
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   order_placed: { label: "Order Placed", color: "bg-muted text-muted-foreground", icon: Package },
@@ -28,11 +40,16 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   cancelled: { label: "Cancelled", color: "bg-destructive/10 text-destructive", icon: Package },
 };
 
-const UserLaundry = () => {
+interface UserLaundryProps {
+  /** Hostel for new orders (active membership with laundry). */
+  orderHostelId: string;
+}
+
+const UserLaundry = ({ orderHostelId }: UserLaundryProps) => {
   const { user } = useAuth();
   const [tab, setTab] = useState("book");
-  const [services, setServices] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [services, setServices] = useState<Tables<"laundry_services">[]>([]);
+  const [orders, setOrders] = useState<LaundryOrderWithRelations[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [pickupDate, setPickupDate] = useState<Date>();
   const [pickupTime, setPickupTime] = useState("10:00");
@@ -47,7 +64,8 @@ const UserLaundry = () => {
     if (user) {
       fetchServices();
       fetchOrders();
-      subscribeToOrders();
+      const cleanup = subscribeToOrders();
+      return cleanup;
     }
   }, [user]);
 
@@ -56,6 +74,7 @@ const UserLaundry = () => {
       .from("laundry_services")
       .select("*")
       .eq("is_active", true)
+      .or(`hostel_id.eq.${orderHostelId},hostel_id.is.null`)
       .order("name");
     setServices(data || []);
   };
@@ -113,6 +132,7 @@ const UserLaundry = () => {
         .from("laundry_orders")
         .insert({
           user_id: user!.id,
+          hostel_id: orderHostelId,
           total_amount: cartTotal,
           pickup_time: pickupDateTime.toISOString(),
           notes: notes || null,
@@ -297,7 +317,7 @@ const UserLaundry = () => {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                           {order.pickup_time && <p>Pickup: {format(new Date(order.pickup_time), "PPP p")}</p>}
-                          <p>Items: {order.laundry_order_items?.map((i: any) => `${i.laundry_services?.name} ×${i.quantity}`).join(", ")}</p>
+                          <p>Items: {order.laundry_order_items?.map((i: LaundryOrderItemWithServiceName) => `${i.laundry_services?.name} ×${i.quantity}`).join(", ")}</p>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="font-heading font-bold text-primary">₹{order.total_amount}</span>
@@ -331,7 +351,7 @@ const UserLaundry = () => {
                       <Badge className={cn("text-[10px]", config?.color)}>{config?.label}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      <p>{order.laundry_order_items?.map((i: any) => `${i.laundry_services?.name} ×${i.quantity}`).join(", ")}</p>
+                      <p>{order.laundry_order_items?.map((i: LaundryOrderItemWithServiceName) => `${i.laundry_services?.name} ×${i.quantity}`).join(", ")}</p>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-heading font-bold text-primary">₹{order.total_amount}</span>

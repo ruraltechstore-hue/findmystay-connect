@@ -1,5 +1,5 @@
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, BadgeCheck, Heart, Share2, Shield, Calendar, IndianRupee, Users, Wifi, Wind, UtensilsCrossed, Dumbbell, Car, Zap, Waves, Home, ChevronLeft, ChevronRight, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Star, MapPin, BadgeCheck, Heart, Share2, Shield, Users, Wifi, Wind, UtensilsCrossed, Dumbbell, Car, Zap, Waves, Home, ChevronLeft, ChevronRight, X, Loader2 } from "lucide-react";
 import VerificationBadge from "@/components/VerificationBadge";
 import PropertyMediaGallery from "@/components/PropertyMediaGallery";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { listings } from "@/data/mockListings";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,12 +39,6 @@ const amenityLabel: Record<string, string> = {
   geyser: "Geyser", washing_machine: "Washing Machine",
 };
 
-const mockReviews = [
-  { name: "Arjun S.", rating: 5, date: "2 weeks ago", comment: "Excellent place! Clean rooms, great food, and very helpful staff.", avatar: "A" },
-  { name: "Priya M.", rating: 4, date: "1 month ago", comment: "Good location and amenities. WiFi could be better during peak hours.", avatar: "P" },
-  { name: "Rohit K.", rating: 5, date: "2 months ago", comment: "Best PG I've stayed in. The community vibe is amazing.", avatar: "R" },
-];
-
 interface DbHostel {
   id: string;
   hostel_name: string;
@@ -61,6 +55,16 @@ interface DbHostel {
   is_active: boolean;
   media_verification_badge: string | null;
   owner_id: string;
+  contact_phone: string | null;
+  contact_email: string | null;
+}
+
+interface ListingReviewRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  user_id: string;
 }
 
 interface DbRoom {
@@ -76,9 +80,7 @@ const ListingDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const mockListing = listings.find((l) => l.id === id);
 
-  // DB state
   const [dbHostel, setDbHostel] = useState<DbHostel | null>(null);
   const [dbRooms, setDbRooms] = useState<DbRoom[]>([]);
   const [dbAmenities, setDbAmenities] = useState<string[]>([]);
@@ -86,7 +88,9 @@ const ListingDetail = () => {
   const [dbPhotos, setDbPhotos] = useState<{ id: string; url: string; uploaded_by: string; type: "photo" }[]>([]);
   const [dbVideos, setDbVideos] = useState<{ id: string; url: string; uploaded_by: string; type: "video" }[]>([]);
   const [ownerName, setOwnerName] = useState("Property Owner");
-  const [loading, setLoading] = useState(!mockListing);
+  const [loading, setLoading] = useState(true);
+  const [listingReviews, setListingReviews] = useState<ListingReviewRow[]>([]);
+  const [allReviewRatings, setAllReviewRatings] = useState<number[]>([]);
 
   const [activeImage, setActiveImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -96,17 +100,21 @@ const ListingDetail = () => {
   const bookingRef = useRef<HTMLDivElement>(null);
   const shouldOpenBooking = searchParams.get("book") === "true";
 
-  // Fetch DB hostel if not a mock listing
   useEffect(() => {
-    if (mockListing || !id) return;
+    if (!id) return;
     const fetchHostel = async () => {
       setLoading(true);
-      const [hostelRes, roomsRes, facilitiesRes, imagesRes, videosRes] = await Promise.all([
+      const [hostelRes, roomsRes, facilitiesRes, imagesRes, videosRes, reviewsRes] = await Promise.all([
         supabase.from("hostels").select("*").eq("id", id).maybeSingle(),
         supabase.from("rooms").select("*").eq("hostel_id", id),
         supabase.from("facilities").select("*").eq("hostel_id", id).maybeSingle(),
         supabase.from("hostel_images").select("*").eq("hostel_id", id).order("display_order"),
         supabase.from("hostel_videos").select("*").eq("hostel_id", id).order("display_order"),
+        supabase
+          .from("reviews")
+          .select("id, rating, comment, created_at, user_id")
+          .eq("hostel_id", id)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (hostelRes.data) {
@@ -136,10 +144,14 @@ const ListingDetail = () => {
       setDbPhotos(imgs.map((i: any) => ({ id: i.id, url: i.image_url, uploaded_by: i.uploaded_by || "owner", type: "photo" as const })));
       setDbVideos((videosRes.data || []).map((v: any) => ({ id: v.id, url: v.video_url, uploaded_by: v.uploaded_by || "owner", type: "video" as const })));
 
+      const revs = (reviewsRes.data || []) as ListingReviewRow[];
+      setListingReviews(revs.slice(0, 2));
+      setAllReviewRatings(revs.map((r) => r.rating));
+
       setLoading(false);
     };
     fetchHostel();
-  }, [id, mockListing]);
+  }, [id]);
 
   // Check saved status
   useEffect(() => {
@@ -180,27 +192,49 @@ const ListingDetail = () => {
     setSavingLike(false);
   };
 
-  // Normalize data from mock or DB
-  const isDbHostel = !mockListing && dbHostel;
-  const title = mockListing?.title || dbHostel?.hostel_name || "";
-  const location = mockListing?.location || (dbHostel ? `${dbHostel.location}, ${dbHostel.city}` : "");
-  const description = mockListing?.description || dbHostel?.description || "";
-  const price = mockListing?.price || dbHostel?.price_min || 0;
-  const rating = mockListing?.rating || dbHostel?.rating || 0;
-  const reviewCount = mockListing?.reviewCount || dbHostel?.review_count || 0;
-  const images = mockListing?.images || dbImages;
-  const amenities = mockListing?.amenities || dbAmenities;
-  const verified = mockListing?.verified || dbHostel?.verified_status === "verified";
-  const mediaVerBadge = mockListing?.mediaVerificationBadge || dbHostel?.media_verification_badge;
-  const propertyType = mockListing?.type || dbHostel?.property_type || "hostel";
-  const gender = mockListing?.gender || dbHostel?.gender || "co-ed";
-  const deposit = mockListing?.deposit || 0;
-  const occupancy = mockListing?.occupancy || "";
-  const availableFrom = mockListing?.availableFrom || "";
-  const ownerDisplay = mockListing?.ownerName || ownerName;
-  const highlights = mockListing?.highlights || [];
+  const handleContactOwner = () => {
+    const phone = dbHostel?.contact_phone?.trim();
+    const email = dbHostel?.contact_email?.trim();
+    if (phone) {
+      window.location.href = `tel:${phone.replace(/\s/g, "")}`;
+      return;
+    }
+    if (email) {
+      window.location.href = `mailto:${email}`;
+      return;
+    }
+    toast.info("Owner has not added contact details yet. You can request a stay below.");
+    bookingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const starHistogram = useMemo(() => {
+    const b = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    allReviewRatings.forEach((r) => {
+      const s = Math.min(5, Math.max(1, Math.round(r))) as keyof typeof b;
+      b[s]++;
+    });
+    const n = allReviewRatings.length || 1;
+    return ([5, 4, 3, 2, 1] as const).map((star) => ({
+      star,
+      pct: Math.round((b[star] / n) * 100),
+    }));
+  }, [allReviewRatings]);
+
+  const title = dbHostel?.hostel_name || "";
+  const location = dbHostel ? `${dbHostel.location}, ${dbHostel.city}` : "";
+  const description = dbHostel?.description || "";
+  const price = dbHostel?.price_min || 0;
+  const rating = dbHostel?.rating || 0;
+  const reviewCount = dbHostel?.review_count || 0;
+  const images = dbImages;
+  const amenities = dbAmenities;
+  const verified = dbHostel?.verified_status === "verified";
+  const mediaVerBadge = dbHostel?.media_verification_badge;
+  const propertyType = dbHostel?.property_type || "hostel";
+  const gender = dbHostel?.gender || "co-ed";
+  const ownerDisplay = ownerName;
   const hostelId = id || "";
-  const isActive = mockListing ? true : (dbHostel?.is_active ?? false);
+  const isActive = dbHostel?.is_active ?? false;
 
   if (loading) {
     return (
@@ -213,7 +247,7 @@ const ListingDetail = () => {
     );
   }
 
-  if (!mockListing && !dbHostel) {
+  if (!dbHostel) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -350,17 +384,6 @@ const ListingDetail = () => {
                 </div>
               )}
 
-              {highlights.length > 0 && (
-                <div>
-                  <h2 className="font-heading font-semibold text-lg mb-3">Highlights</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {highlights.map((h) => (
-                      <Badge key={h} variant="secondary" className="py-2 px-4 rounded-xl text-sm">{h}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {amenities.length > 0 && (
                 <>
                   <Separator />
@@ -384,7 +407,7 @@ const ListingDetail = () => {
               )}
 
               {/* Room types for DB hostels */}
-              {isDbHostel && dbRooms.length > 0 && (
+              {dbRooms.length > 0 && (
                 <>
                   <Separator />
                   <div>
@@ -426,39 +449,46 @@ const ListingDetail = () => {
                     <p className="text-muted-foreground text-xs mt-1">{reviewCount} reviews</p>
                   </div>
                   <div className="flex-1 space-y-1.5">
-                    {[5, 4, 3, 2, 1].map((star) => {
-                      const pct = star === 5 ? 72 : star === 4 ? 20 : star === 3 ? 5 : 2;
-                      return (
-                        <div key={star} className="flex items-center gap-2 text-xs">
-                          <span className="w-3 text-muted-foreground">{star}</span>
-                          <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                            <div className="h-full bg-verified rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="w-8 text-muted-foreground text-right">{pct}%</span>
+                    {starHistogram.map(({ star, pct }) => (
+                      <div key={star} className="flex items-center gap-2 text-xs">
+                        <span className="w-3 text-muted-foreground">{star}</span>
+                        <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
+                          <div className="h-full bg-verified rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                      );
-                    })}
+                        <span className="w-8 text-muted-foreground text-right">{pct}%</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  {mockReviews.slice(0, 2).map((review) => (
-                    <div key={review.name} className="p-4 rounded-xl border border-border/50 bg-card">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm">{review.avatar}</div>
-                        <div className="flex-1">
-                          <p className="font-heading font-semibold text-sm">{review.name}</p>
-                          <p className="text-muted-foreground text-xs">{review.date}</p>
+                  {listingReviews.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No reviews yet.</p>
+                  ) : (
+                    listingReviews.map((review) => (
+                      <div key={review.id} className="p-4 rounded-xl border border-border/50 bg-card">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm">
+                            {review.user_id.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-heading font-semibold text-sm">Verified resident</p>
+                            <p className="text-muted-foreground text-xs">
+                              {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating ? "fill-verified text-verified" : "text-border"}`} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating ? "fill-verified text-verified" : "text-border"}`} />
-                          ))}
-                        </div>
+                        {review.comment && (
+                          <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
+                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -466,89 +496,25 @@ const ListingDetail = () => {
             {/* Booking Sidebar */}
             <div>
               <div className="sticky top-28 space-y-4" ref={bookingRef}>
-                {/* Mock listing sidebar (legacy) */}
-                {mockListing && (
-                  <div className="bg-card rounded-2xl shadow-card-hover p-6 border border-border/50">
-                    <div className="flex items-baseline gap-1 mb-1">
-                      <span className="font-heading font-extrabold text-3xl text-primary">₹{price.toLocaleString()}</span>
-                      <span className="text-muted-foreground text-sm">/ month</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-6">Occupancy: {occupancy}</p>
+                <BookingPanel
+                  hostelId={hostelId}
+                  hostelName={title}
+                  priceMin={dbHostel!.price_min}
+                  priceMax={dbHostel!.price_max}
+                  rooms={dbRooms}
+                  isActive={isActive}
+                />
 
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between text-sm p-3 rounded-xl bg-secondary/50">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-primary" /> Available from
-                        </span>
-                        <span className="font-semibold">{availableFrom}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm p-3 rounded-xl bg-secondary/50">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                          <IndianRupee className="w-4 h-4 text-primary" /> Security Deposit
-                        </span>
-                        <span className="font-semibold">₹{deposit.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={handleSaveToggle}
-                        variant="outline"
-                        size="lg"
-                        className="flex-1 gap-2 rounded-xl border-primary/30 hover:bg-primary/5"
-                        disabled={savingLike}
-                      >
-                        <Heart className={`w-4 h-4 ${liked ? "fill-destructive text-destructive" : "text-primary"}`} />
-                        {liked ? "Saved" : "Save"}
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          if (!user) {
-                            toast.info("Please sign in or create an account to continue booking.");
-                            navigate(`/login?redirect=/listing/${id}&book=true`);
-                            return;
-                          }
-                          navigate(`/booking/${id}`);
-                        }}
-                        size="lg"
-                        className="flex-[2] gap-2 rounded-xl bg-[#8B5E3C] hover:bg-[#7A5235] text-white font-semibold shadow-md hover:-translate-y-0.5 transition-all"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        Book Now
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
-                      <Shield className="w-3.5 h-3.5 text-accent" />
-                      <span>Secure booking · No charges yet</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* DB hostel booking panel */}
-                {isDbHostel && (
-                  <BookingPanel
-                    hostelId={hostelId}
-                    hostelName={title}
-                    priceMin={dbHostel!.price_min}
-                    priceMax={dbHostel!.price_max}
-                    rooms={dbRooms}
-                    isActive={isActive}
-                  />
-                )}
-
-                {/* Save button for DB hostels */}
-                {isDbHostel && (
-                  <Button
-                    onClick={handleSaveToggle}
-                    variant="outline"
-                    size="lg"
-                    className="w-full gap-2 rounded-xl border-primary/30 hover:bg-primary/5"
-                    disabled={savingLike}
-                  >
-                    <Heart className={`w-4 h-4 ${liked ? "fill-destructive text-destructive" : "text-primary"}`} />
-                    {liked ? "Saved to Favorites" : "Save Hostel"}
-                  </Button>
-                )}
+                <Button
+                  onClick={handleSaveToggle}
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2 rounded-xl border-primary/30 hover:bg-primary/5"
+                  disabled={savingLike}
+                >
+                  <Heart className={`w-4 h-4 ${liked ? "fill-destructive text-destructive" : "text-primary"}`} />
+                  {liked ? "Saved to Favorites" : "Save Hostel"}
+                </Button>
 
                 <div className="bg-card rounded-2xl p-5 border border-border/50">
                   <div className="flex items-center gap-3">
@@ -560,7 +526,9 @@ const ListingDetail = () => {
                       <p className="text-xs text-muted-foreground">Property Owner · Responds within 2h</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full mt-4 rounded-xl">Contact Owner</Button>
+                  <Button type="button" variant="outline" size="sm" className="w-full mt-4 rounded-xl" onClick={handleContactOwner}>
+                    Contact Owner
+                  </Button>
                 </div>
               </div>
             </div>

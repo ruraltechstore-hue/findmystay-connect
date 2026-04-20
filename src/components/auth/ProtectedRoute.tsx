@@ -8,11 +8,8 @@ type AppRole = "admin" | "owner" | "user" | "owner_pending";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  /** Roles allowed to access this route. If empty, any authenticated user can access. */
   allowedRoles?: AppRole[];
-  /** Where to redirect unauthenticated users */
   loginPath?: string;
-  /** Where to redirect users without the required role */
   unauthorizedPath?: string;
 }
 
@@ -33,15 +30,6 @@ const ProtectedRoute = ({
       return;
     }
 
-    // Handle owner_pending redirect
-    if (hasRole("owner_pending" as AppRole)) {
-      if (!allowedRoles.includes("owner_pending")) {
-        navigate("/owner-verification-pending");
-        return;
-      }
-    }
-
-    // Check role access
     if (allowedRoles.length > 0) {
       const hasAccess = allowedRoles.some((role) => hasRole(role));
       if (!hasAccess) {
@@ -60,6 +48,10 @@ const ProtectedRoute = ({
   }
 
   if (!user) return null;
+
+  if (allowedRoles.length > 0 && !allowedRoles.some((role) => hasRole(role))) {
+    return null;
+  }
 
   return <>{children}</>;
 };
